@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EKS Cluster with Single Node using existing VPC and Subnet
+
+Parameters:
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+    Description: ID of the existing VPC
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: List of Subnets in different Availability Zones
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "eks-cluster-resources-${AWS::AccountId}-${AWS::Region}"
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Name
+          Value: "EKSClusterResourcesBucket"
+  # EKS Cluster
+  EKSCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: EKS-SingleNodeCluster
+      ResourcesVpcConfig:
+        SubnetIds: !Ref SubnetIds
+        EndpointPublicAccess: true
+        EndpointPrivateAccess: false
+      RoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/EKSClusterRole"
+
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: example-code
+      ImageTagMutability: MUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Remove untagged images older than 30 days",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "sinceImagePushed",
+                  "countUnit": "days",
+                  "countNumber": 30
+                },
+                "action": {
+                  "type": "expire"
+                }
+              }
+            ]
+          }
+      Tags:
+        - Key: Environment
+          Value: Production
+
+
+  # # Node Group
+  # NodeGroup:
+  #   Type: AWS::EKS::Nodegroup
+  #   Properties:
+  #     ClusterName: !Ref EKSCluster
+  #     NodegroupName: EKS-SingleNodeGroup
+  #     ScalingConfig:
+  #       MinSize: 1
+  #       MaxSize: 1
+  #       DesiredSize: 1
+  #     Subnets: !Ref SubnetIds
+  #     InstanceTypes:
+  #       - t3.medium  # Adjust based on needs
+  #     AmiType: AL2_x86_64
+  #     NodeRole: !Sub "arn:aws:iam::${AWS::AccountId}:role/EKSNodeRole"
+
+# Outputs:
+#   ClusterName:
+#     Description: Name of the EKS Cluster
+#     Value: !Ref EKSCluster
+
+#   NodeGroupName:
+#     Description: Name of the Node Group
+#     Value: !Ref NodeGroup
