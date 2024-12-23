@@ -1,6 +1,6 @@
 # Challenge
 
-## Task 1: Deploy EKS NodeGroup CloudFormation Template\*\*
+## Task 1: Deploy EKS NodeGroup CloudFormation Template
 
 ### **Prerequisites**
 
